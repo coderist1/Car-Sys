@@ -1,0 +1,148 @@
+// Car Rental Management System — ERD Database Schema
+// UI mock data in src/lib/db mirrors these relationships
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id       Int            @id @default(autoincrement())
+  email         String         @unique
+  password_hash String
+  role          String         // admin | manager | staff | customer
+  created_at    DateTime       @default(now())
+  is_active     Boolean        @default(true)
+  staff_info    StaffInfo?
+  customer_info CustomerInfo?
+  @@map("user")
+}
+
+model StaffInfo {
+  staff_id   Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  fullName   String
+  department String
+  phone      String
+  hire_date  DateTime
+  user       User     @relation(fields: [user_id], references: [user_id])
+  @@map("staff_info")
+}
+
+model CustomerInfo {
+  user_id              Int      @id
+  customerFullName     String
+  address              String
+  driverLicense        String   @unique
+  verification_status  String   @default("pending")
+  is_suspended         Boolean  @default(false)
+  user                 User     @relation(fields: [user_id], references: [user_id])
+  bookings             Booking[]
+  @@map("customer_info")
+}
+
+model Vehicle {
+  vehicle_id      Int                   @id @default(autoincrement())
+  plateNumber     String                @unique
+  mileage         Int
+  brand           String
+  model           String
+  type            String
+  capacity        Int
+  year_model      Int
+  year_purchased  Int
+  status          String                @default("available")
+  bookings        Booking[]
+  reg_details     VehicleRegDetails?
+  maintenance     VehicleMaintenance[]
+  fuel_records    FuelRecord[]
+  assigned_driver DriverDetails?
+  @@map("vehicle")
+}
+
+model VehicleRegDetails {
+  reg_id               Int      @id @default(autoincrement())
+  vehicle_id           Int      @unique
+  registration_number  String
+  insurance_provider   String
+  insurance_expiry     DateTime
+  registration_expiry  DateTime
+  vehicle              Vehicle  @relation(fields: [vehicle_id], references: [vehicle_id])
+  @@map("vehicle_reg_details")
+}
+
+model VehicleMaintenance {
+  maintenance_id    Int      @id @default(autoincrement())
+  vehicle_id        Int
+  service_type      String
+  assigned_mechanic String
+  service_date      DateTime
+  cost              Decimal  @db.Decimal(10, 2)
+  status            String   @default("pending")
+  notes             String?
+  vehicle           Vehicle  @relation(fields: [vehicle_id], references: [vehicle_id])
+  @@map("vehicle_maintenance")
+}
+
+model FuelRecord {
+  fuel_id    Int      @id @default(autoincrement())
+  vehicle_id Int
+  booking_id Int?
+  fuel_date  DateTime
+  liters     Decimal  @db.Decimal(8, 2)
+  cost       Decimal  @db.Decimal(10, 2)
+  odometer   Int
+  station    String
+  vehicle    Vehicle  @relation(fields: [vehicle_id], references: [vehicle_id])
+  booking    Booking? @relation(fields: [booking_id], references: [booking_id])
+  @@map("fuel_record")
+}
+
+model DriverDetails {
+  driver_id            Int      @id @default(autoincrement())
+  full_name            String
+  license_number       String   @unique
+  contact_number       String
+  assigned_vehicle_id  Int?     @unique
+  availability         String   @default("available")
+  experience_years     Int
+  rating               Decimal  @db.Decimal(2, 1)
+  employment_status    String   @default("active")
+  assigned_vehicle     Vehicle? @relation(fields: [assigned_vehicle_id], references: [vehicle_id])
+  bookings             Booking[]
+  @@map("driver_details")
+}
+
+model Booking {
+  booking_id        Int           @id @default(autoincrement())
+  customer_user_id  Int
+  vehicle_id        Int
+  driver_id         Int?
+  pickup_date       DateTime
+  return_date       DateTime
+  status            String        @default("pending")
+  total_amount      Decimal       @db.Decimal(10, 2)
+  notes             String?
+  customer          CustomerInfo  @relation(fields: [customer_user_id], references: [user_id])
+  vehicle           Vehicle       @relation(fields: [vehicle_id], references: [vehicle_id])
+  driver            DriverDetails? @relation(fields: [driver_id], references: [driver_id])
+  payment           Payment?
+  fuel_records      FuelRecord[]
+  @@map("booking")
+}
+
+model Payment {
+  payment_id       Int      @id @default(autoincrement())
+  booking_id       Int      @unique
+  amount           Decimal  @db.Decimal(10, 2)
+  payment_date     DateTime
+  payment_method   String
+  status           String   @default("pending")
+  transaction_ref  String?
+  booking          Booking  @relation(fields: [booking_id], references: [booking_id])
+  @@map("payment")
+}
