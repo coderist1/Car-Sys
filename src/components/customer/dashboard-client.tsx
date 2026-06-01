@@ -6,8 +6,9 @@ import { Calendar, History, Heart, Settings, Download, X, CreditCard } from "luc
 import { useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useBookingSnapshot } from "@/hooks/use-booking-conflicts";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
 import { cancelBooking } from "@/lib/booking/booking-registry";
-import { vehicles, payments, bookings as seedBookings } from "@/lib/db/mock-data";
+import { getPayments, getVehicles } from "@/lib/db/data-store";
 import { CtaButton } from "@/components/customer/cta-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,14 +27,16 @@ export function DashboardClient() {
         : "upcoming";
   const { session, ready } = useAuth(true);
   const allBookings = useBookingSnapshot();
+  const storeVersion = useDataStoreVersion();
 
   const { upcoming, history } = useMemo(() => {
     if (!session) return { upcoming: [], history: [] };
+    const fleet = getVehicles();
     const mine = allBookings
       .filter((b) => b.customer_user_id === session.userId)
       .map((b) => ({
         ...b,
-        vehicle: vehicles.find((v) => v.vehicle_id === b.vehicle_id),
+        vehicle: fleet.find((v) => v.vehicle_id === b.vehicle_id),
       }));
     return {
       upcoming: mine.filter((b) =>
@@ -43,7 +46,7 @@ export function DashboardClient() {
         ["completed", "cancelled"].includes(b.status)
       ),
     };
-  }, [allBookings, session]);
+  }, [allBookings, session, storeVersion]);
 
   const paymentHistory = useMemo(() => {
     if (!session) return [];
@@ -52,14 +55,14 @@ export function DashboardClient() {
         .filter((b) => b.customer_user_id === session.userId)
         .map((b) => b.booking_id)
     );
-    return payments
+    return getPayments()
       .filter((p) => myBookingIds.has(p.booking_id))
       .map((p) => ({
         ...p,
-        booking: seedBookings.find((b) => b.booking_id === p.booking_id),
+        booking: allBookings.find((b) => b.booking_id === p.booking_id),
       }))
       .sort((a, b) => b.payment_date.localeCompare(a.payment_date));
-  }, [allBookings, session]);
+  }, [allBookings, session, storeVersion]);
 
   if (!ready || !session) {
     return (
@@ -131,6 +134,11 @@ export function DashboardClient() {
                       <p className="text-xs font-mono text-muted-foreground mt-1">
                         #{b.booking_id}
                       </p>
+                      {b.status === "pending" && (
+                        <p className="text-xs text-amber-700 mt-1">
+                          Awaiting admin approval
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

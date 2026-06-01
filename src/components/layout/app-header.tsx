@@ -2,7 +2,7 @@
 
 import { Bell, Menu, Moon, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
+import { IDriveCDOLogo } from "@/components/brand/idrive-cdo-logo";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { clearSession, getSession } from "@/lib/auth/session";
@@ -27,14 +27,14 @@ export function AppHeader() {
   const session = mounted ? getSession() : null;
   const actor = session ? getActor(session) : "admin";
   const portalTitle =
-    actor === "admin" ? "Brilliant Gem Admin" : actor === "staff" ? "Brilliant Gem Staff" : "Brilliant Gem";
+    actor === "admin" ? "iDriveCDO Admin" : actor === "staff" ? "iDriveCDO Staff" : "iDriveCDO";
   const initials =
     session?.displayName
       ?.split(" ")
       .map((n) => n[0])
       .join("")
       .slice(0, 2)
-      .toUpperCase() ?? "BG";
+      .toUpperCase() ?? "ID";
 
   useEffect(() => {
     setMounted(true);
@@ -63,11 +63,11 @@ export function AppHeader() {
       </Button>
 
       <div className="flex min-w-0 flex-1 items-center md:hidden">
-        <BrilliantGemLogo size="sm" showWordmark />
+        <IDriveCDOLogo size="sm" showWordmark />
       </div>
       <div className="hidden min-w-0 flex-1 items-center md:flex">
         <span className="truncate text-sm font-medium text-muted-foreground">
-          Brilliant Gem Admin
+          {portalTitle}
         </span>
       </div>
 

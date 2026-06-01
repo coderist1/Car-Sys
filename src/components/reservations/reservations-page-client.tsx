@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Calendar, Plus, Eye, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Calendar, Plus, Eye, Trash2, Check, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageActionButton } from "@/components/shared/page-action-button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -45,30 +45,28 @@ import type {
 import { formatDateOnly } from "@/lib/format-date";
 import { BookingConflictAlert } from "@/components/shared/booking-conflict-alert";
 import { useBookingConflicts, useBookingSnapshot } from "@/hooks/use-booking-conflicts";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
 import {
+  acceptBooking,
   deleteBooking,
-  resetBookings,
+  rejectBooking,
   tryCreateBooking,
   updateBooking,
 } from "@/lib/booking/booking-registry";
 import { findBookingConflicts } from "@/lib/booking/conflict-detection";
+import { getCustomers, getDrivers, getVehicles } from "@/lib/db/data-store";
+import { enrichBooking } from "@/lib/db/queries";
 
-export function ReservationsPageClient({
-  bookings,
-  customers,
-  vehicles,
-  driverList,
-}: {
-  bookings: BookingWithRelations[];
-  customers: CustomerInfo[];
-  vehicles: Vehicle[];
-  driverList: DriverDetails[];
-}) {
+export function ReservationsPageClient() {
   const [selected, setSelected] = useState<BookingWithRelations | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [clientReady, setClientReady] = useState(false);
+  const storeVersion = useDataStoreVersion();
+  const customers = useMemo(() => getCustomers(), [storeVersion]);
+  const vehicles = useMemo(() => getVehicles(), [storeVersion]);
+  const driverList = useMemo(() => getDrivers(), [storeVersion]);
   const [form, setForm] = useState({
     customer_user_id: "",
     vehicle_id: "",
@@ -79,45 +77,14 @@ export function ReservationsPageClient({
     status: "pending" as BookingStatus,
   });
 
-  useEffect(() => {
-    setClientReady(true);
-    resetBookings(
-      bookings.map((b) => ({
-        booking_id: b.booking_id,
-        customer_user_id: b.customer_user_id,
-        vehicle_id: b.vehicle_id,
-        driver_id: b.driver_id,
-        pickup_date: b.pickup_date,
-        return_date: b.return_date,
-        status: b.status,
-        total_amount: b.total_amount,
-        payment_id: b.payment_id,
-      }))
-    );
-  }, [bookings]);
-
   const registryBookings = useBookingSnapshot();
 
   const localBookings = useMemo(
     () =>
       registryBookings
-        .map((b) => {
-          const enriched = bookings.find((x) => x.booking_id === b.booking_id);
-          if (enriched) return { ...enriched, ...b };
-          const customer = customers.find((c) => c.user_id === b.customer_user_id);
-          const vehicle = vehicles.find((v) => v.vehicle_id === b.vehicle_id);
-          const driver = b.driver_id
-            ? driverList.find((d) => d.driver_id === b.driver_id)
-            : undefined;
-          return {
-            ...b,
-            customer,
-            vehicle,
-            driver,
-          } as BookingWithRelations;
-        })
+        .map(enrichBooking)
         .sort((a, b) => b.booking_id - a.booking_id),
-    [registryBookings, bookings, customers, vehicles, driverList]
+    [registryBookings, storeVersion]
   );
 
   const draft = useMemo(() => {
@@ -139,6 +106,33 @@ export function ReservationsPageClient({
 
   const activeCount = localBookings.filter((b) => b.status === "active").length;
   const confirmedCount = localBookings.filter((b) => b.status === "confirmed").length;
+  const pendingCount = localBookings.filter((b) => b.status === "pending").length;
+
+  const handleAccept = (bookingId: number) => {
+    setCreateError(null);
+    const result = acceptBooking(bookingId);
+    if (!result.success) {
+      setCreateError(result.message);
+      return;
+    }
+    setActionMessage(`Booking #${bookingId} accepted — now confirmed.`);
+    if (selected?.booking_id === bookingId) {
+      setSelected(enrichBooking(result.booking));
+    }
+  };
+
+  const handleReject = (bookingId: number) => {
+    setCreateError(null);
+    const result = rejectBooking(bookingId);
+    if (!result.success) {
+      setCreateError(result.message);
+      return;
+    }
+    setActionMessage(`Booking #${bookingId} rejected.`);
+    if (selected?.booking_id === bookingId) {
+      setSelected(enrichBooking(result.booking));
+    }
+  };
 
   const handleCreate = async () => {
     setCreateError(null);
@@ -203,6 +197,16 @@ export function ReservationsPageClient({
 
   return (
     <div className="space-y-6">
+      {actionMessage && (
+        <p className="text-sm text-emerald-700 bg-emerald-500/10 rounded-lg px-3 py-2">
+          {actionMessage}
+        </p>
+      )}
+      {createError && (
+        <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2" role="alert">
+          {createError}
+        </p>
+      )}
       <PageHeader
         title="Reservations"
         description="Bookings linked to customer_info, vehicle, payment, and driver_details."
@@ -226,9 +230,6 @@ export function ReservationsPageClient({
               <DialogDescription>Create a booking linked to customer and vehicle</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-2">
-              {!clientReady ? (
-                <p className="text-sm text-muted-foreground py-4">Loading form…</p>
-              ) : (
               <>
               <div className="space-y-2">
                 <Label>Customer</Label>
@@ -340,7 +341,6 @@ export function ReservationsPageClient({
                 </p>
               )}
               </>
-              )}
             </div>
             <DialogFooter className="flex-col gap-2 sm:flex-row">
               <Button variant="outline" className="w-full sm:w-auto" onClick={() => setAddOpen(false)}>
@@ -358,7 +358,13 @@ export function ReservationsPageClient({
         </Dialog>
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border/60 border-amber-500/30">
+          <CardHeader className="pb-2">
+            <CardDescription>Awaiting approval</CardDescription>
+            <CardTitle className="text-2xl text-amber-700">{pendingCount}</CardTitle>
+          </CardHeader>
+        </Card>
         <Card className="border-border/60">
           <CardHeader className="pb-2">
             <CardDescription>Active Rentals</CardDescription>
@@ -431,51 +437,71 @@ export function ReservationsPageClient({
                           <StatusBadge type="booking" status={b.status} />
                         </TableCell>
                         <TableCell>
-                          {clientReady ? (
-                            <Select
-                              value={b.driver_id?.toString() ?? "none"}
-                              onValueChange={(v) => {
-                                const driverId = v === "none" ? undefined : +v;
-                                handleDriverAssign(b, driverId);
-                              }}
-                            >
-                              <SelectTrigger className="h-8 w-[140px] text-xs">
-                                <SelectValue placeholder="Assign" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Unassigned</SelectItem>
-                                {driverList
-                                  .filter((d) => d.employment_status === "active")
-                                  .map((d) => (
-                                    <SelectItem key={d.driver_id} value={String(d.driver_id)}>
-                                      {d.full_name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <div className="h-8 w-[140px] rounded-lg bg-muted/50" />
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setSelected(b)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => {
-                              if (deleteBooking(b.booking_id)) setSelected(null);
+                          <Select
+                            value={b.driver_id?.toString() ?? "none"}
+                            onValueChange={(v) => {
+                              const driverId = v === "none" ? undefined : +v;
+                              handleDriverAssign(b, driverId);
                             }}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            <SelectTrigger className="h-8 w-[140px] text-xs">
+                              <SelectValue placeholder="Assign" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Unassigned</SelectItem>
+                              {driverList
+                                .filter((d) => d.employment_status === "active")
+                                .map((d) => (
+                                  <SelectItem key={d.driver_id} value={String(d.driver_id)}>
+                                    {d.full_name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {b.status === "pending" && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-emerald-600"
+                                  title="Accept booking"
+                                  onClick={() => handleAccept(b.booking_id)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive"
+                                  title="Reject booking"
+                                  onClick={() => handleReject(b.booking_id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setSelected(b)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => {
+                                if (deleteBooking(b.booking_id)) setSelected(null);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -575,6 +601,20 @@ export function ReservationsPageClient({
                     <StatusBadge type="payment" status={selected.payment.status} />
                   )}
                 </div>
+                {selected.status === "pending" && (
+                  <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end pt-4">
+                    <Button
+                      variant="outline"
+                      className="gap-1 text-destructive border-destructive/30"
+                      onClick={() => handleReject(selected.booking_id)}
+                    >
+                      <X className="h-4 w-4" /> Reject
+                    </Button>
+                    <Button className="gap-1" onClick={() => handleAccept(selected.booking_id)}>
+                      <Check className="h-4 w-4" /> Accept booking
+                    </Button>
+                  </DialogFooter>
+                )}
               </div>
             </>
           )}

@@ -1,5 +1,5 @@
 import { Card, CardHeader } from "@/components/ui/card";
-import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
+import { IDriveCDOLogo } from "@/components/brand/idrive-cdo-logo";
 import { LoginForm } from "@/components/customer/login-form";
 
 export default function LoginPage() {
@@ -8,7 +8,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md rounded-2xl border-0 shadow-soft">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
-            <BrilliantGemLogo size="lg" />
+            <IDriveCDOLogo size="lg" />
           </div>
         </CardHeader>
         <LoginForm />

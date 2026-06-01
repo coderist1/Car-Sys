@@ -29,7 +29,7 @@ export default async function VehicleDetailPage({
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-muted shadow-soft">
-            <Image src={vehicle.image} alt={vehicle.model} fill className="object-cover" priority />
+            <Image src={vehicle.image} alt={vehicle.model} fill sizes="(max-width: 1024px) 100vw, 66vw" className="object-cover" priority />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">

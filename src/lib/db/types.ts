@@ -80,7 +80,13 @@ export interface FuelRecord {
 }
 
 export type PaymentStatus = "paid" | "pending" | "partial" | "refunded" | "failed";
-export type PaymentMethod = "card" | "cash" | "bank_transfer" | "online";
+export type PaymentMethod =
+  | "card"
+  | "cash"
+  | "bank_transfer"
+  | "online"
+  | "paypal"
+  | "gcash";
 
 export interface Payment {
   payment_id: number;

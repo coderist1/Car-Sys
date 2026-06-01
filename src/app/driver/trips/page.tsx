@@ -11,15 +11,19 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatDateOnly } from "@/lib/format-date";
 import { updateBookingStatus } from "@/lib/booking/booking-registry";
-import { vehicles, customers } from "@/lib/db/mock-data";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
+import { getCustomers, getVehicles } from "@/lib/db/data-store";
 
 export default function DriverTripsPage() {
   const { session } = useAuth(true);
   const bookings = useBookingSnapshot();
+  const storeVersion = useDataStoreVersion();
   const [accepted, setAccepted] = useState<number[]>([]);
 
   const myTrips = useMemo(() => {
     if (!session?.driverId) return [];
+    const customers = getCustomers();
+    const vehicles = getVehicles();
     return bookings
       .filter((b) => b.driver_id === session.driverId && b.status !== "cancelled")
       .map((b) => ({
@@ -27,7 +31,7 @@ export default function DriverTripsPage() {
         customer: customers.find((c) => c.user_id === b.customer_user_id),
         vehicle: vehicles.find((v) => v.vehicle_id === b.vehicle_id),
       }));
-  }, [bookings, session?.driverId]);
+  }, [bookings, session?.driverId, storeVersion]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
@@ -61,6 +65,12 @@ export default function DriverTripsPage() {
                   </div>
                   <StatusBadge type="booking" status={b.status} />
                 </div>
+
+                {b.status === "pending" && (
+                  <p className="text-sm text-amber-700 bg-amber-500/10 rounded-lg px-3 py-2">
+                    Awaiting admin approval before you can accept this trip.
+                  </p>
+                )}
 
                 {b.status === "confirmed" && !accepted.includes(b.booking_id) && (
                   <div className="rounded-lg bg-cta/5 border border-cta/20 p-3 space-y-2">

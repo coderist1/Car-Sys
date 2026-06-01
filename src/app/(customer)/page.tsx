@@ -24,7 +24,7 @@ const whyUs = [
 ];
 
 const reviews = [
-  { name: "Sarah Mitchell", role: "Business Traveler", text: "Brilliant Gem made my business trips effortless. Always clean cars and on time.", initials: "SM", rating: 5 },
+  { name: "Sarah Mitchell", role: "Business Traveler", text: "iDriveCDO made my business trips effortless. Always clean cars and on time.", initials: "SM", rating: 5 },
   { name: "David Chen", role: "Family Vacation", text: "Rented an SUV for our family trip. Smooth booking and great customer service.", initials: "DC", rating: 5 },
   { name: "Maria Lopez", role: "Weekend Getaway", text: "Love the app! Booked a convertible in minutes. Will definitely use again.", initials: "ML", rating: 5 },
 ];
@@ -96,7 +96,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <p className="section-label">Why Us</p>
           <h2 className="text-2xl font-bold text-foreground sm:text-3xl mt-1 mb-12">
-            Why Choose Brilliant Gem
+            Why Choose iDriveCDO
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {whyUs.map((item) => (
@@ -161,7 +161,7 @@ export default function LandingPage() {
                 Book on the Go with Our App
               </h2>
               <p className="text-white/80 max-w-md">
-                Download the Brilliant Gem app for mobile browsing, instant reservations, and digital keys.
+                Download the iDriveCDO app for mobile browsing, instant reservations, and digital keys.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <CtaButton className="!bg-transparent !text-white border-2 border-white hover:!bg-white/10 !rounded-full">

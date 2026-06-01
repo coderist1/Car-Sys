@@ -9,7 +9,7 @@ export type AuthSession = {
   driverId?: number;
 };
 
-const STORAGE_KEY = "brilliant_gem_session";
+const STORAGE_KEY = "idrive_cdo_session";
 
 export function getSession(): AuthSession | null {
   if (typeof window === "undefined") return null;

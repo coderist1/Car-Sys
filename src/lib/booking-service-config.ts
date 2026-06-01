@@ -7,7 +7,7 @@ import {
   Shield,
   Upload,
   User,
-  UserCircle,
+  ScrollText,
 } from "lucide-react";
 
 export type ServiceType = "self-drive" | "chauffeur";
@@ -17,7 +17,7 @@ export type BookingStepId =
   | "trip"
   | "personal"
   | "license"
-  | "chauffeur"
+  | "lease"
   | "payment"
   | "review";
 
@@ -67,6 +67,7 @@ export const SELF_DRIVE_CONFIG: ServiceConfig = {
     { id: "vehicle", label: "Vehicle", icon: Car },
     { id: "personal", label: "Personal Info", icon: User },
     { id: "license", label: "License", icon: Upload },
+    { id: "lease", label: "Lease Agreement", icon: ScrollText },
     { id: "payment", label: "Payment", icon: CreditCard },
     { id: "review", label: "Review", icon: Check },
   ],
@@ -114,7 +115,7 @@ export const CHAUFFEUR_CONFIG: ServiceConfig = {
     { id: "vehicle", label: "Vehicle", icon: Car },
     { id: "trip", label: "Trip Details", icon: MapPin },
     { id: "personal", label: "Personal Info", icon: User },
-    { id: "chauffeur", label: "Chauffeur", icon: UserCircle },
+    { id: "lease", label: "Lease Agreement", icon: ScrollText },
     { id: "payment", label: "Payment", icon: CreditCard },
     { id: "review", label: "Review", icon: Check },
   ],

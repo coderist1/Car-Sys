@@ -40,7 +40,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CustomerInfo } from "@/lib/db/types";
-import type { BookingWithRelations } from "@/lib/db/types";
 import { useDataStoreVersion } from "@/hooks/use-data-store";
 import {
   createCustomer,
@@ -48,16 +47,11 @@ import {
   getCustomers,
   updateCustomer,
 } from "@/lib/db/data-store";
+import { getCustomerRentalHistory } from "@/lib/db/queries";
 
-export function CustomersPageClient({
-  rentalHistory: initialHistory,
-}: {
-  customers: CustomerInfo[];
-  rentalHistory: Record<number, BookingWithRelations[]>;
-}) {
+export function CustomersPageClient() {
   const version = useDataStoreVersion();
   const customers = useMemo(() => getCustomers(), [version]);
-  const [rentalHistory] = useState(initialHistory);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<CustomerInfo | null>(null);
   const [search, setSearch] = useState("");
@@ -85,7 +79,10 @@ export function CustomersPageClient({
     });
   }, [customers, search, verificationFilter]);
 
-  const history = selected ? (rentalHistory[selected.user_id] ?? []) : [];
+  const history = useMemo(
+    () => (selected ? getCustomerRentalHistory(selected.user_id) : []),
+    [selected, version]
+  );
 
   const toggleSuspend = (userId: number) => {
     const c = customers.find((x) => x.user_id === userId);

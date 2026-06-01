@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Share2, Mail, Phone, MapPin } from "lucide-react";
-import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
+import { IDriveCDOLogo } from "@/components/brand/idrive-cdo-logo";
 
 export function CustomerFooter() {
   return (
@@ -8,9 +8,9 @@ export function CustomerFooter() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
-            <BrilliantGemLogo size="md" variant="dark" />
+            <IDriveCDOLogo size="md" variant="dark" />
             <p className="text-sm text-muted-foreground">
-              Premium car rental with seamless booking. Drive excellence with Brilliant Gem.
+              Premium car rental with seamless booking. Drive excellence with iDriveCDO.
             </p>
             <div className="flex gap-3">
               {["Facebook", "Instagram", "Twitter"].map((label) => (
@@ -50,7 +50,7 @@ export function CustomerFooter() {
                 <Phone className="h-4 w-4 text-cta shrink-0" /> +1 (800) 555-GEM
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-cta shrink-0" /> hello@brilliantgem.com
+                <Mail className="h-4 w-4 text-cta shrink-0" /> hello@idrivecdo.com
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 shrink-0 text-cta mt-0.5" />
@@ -61,7 +61,7 @@ export function CustomerFooter() {
         </div>
         <div className="mt-10 border-t border-border pt-6 text-center text-xs text-muted-foreground">
           <span suppressHydrationWarning>
-            © {new Date().getFullYear()} Brilliant Gem Car Rental. All rights reserved.
+            © {new Date().getFullYear()} iDriveCDO Car Rental. All rights reserved.
           </span>
         </div>
       </div>

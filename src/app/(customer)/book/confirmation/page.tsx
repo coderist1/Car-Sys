@@ -23,17 +23,21 @@ export default async function ConfirmationPage({
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
             <CheckCircle className="h-12 w-12 text-emerald-500" />
           </div>
-          <h1 className="text-2xl font-bold text-navy sm:text-3xl">Booking Confirmed!</h1>
+          <h1 className="text-2xl font-bold text-navy sm:text-3xl">Booking submitted!</h1>
           <p className="mt-2 text-muted-foreground">
-            Your reservation has been successfully placed.
+            Your request is pending admin approval. You will see it as confirmed on your
+            dashboard once accepted.
           </p>
           <div className="mt-8 rounded-2xl bg-muted/50 p-6 space-y-2">
             <p className="text-sm text-muted-foreground">Service</p>
             <p className="font-semibold text-navy">{serviceLabel}</p>
             <p className="text-sm text-muted-foreground pt-2">Reservation ID</p>
             <p className="text-2xl font-mono font-bold text-cta">{reservationId}</p>
-            <p className="text-sm text-muted-foreground pt-2">Total paid</p>
+            <p className="text-sm text-muted-foreground pt-2">Estimated total</p>
             <p className="text-xl font-bold text-navy">${total}</p>
+            <p className="text-xs text-muted-foreground pt-1">
+              Payment is captured after your booking is accepted.
+            </p>
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <CtaButton href="/dashboard" className="w-full">

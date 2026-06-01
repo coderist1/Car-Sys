@@ -6,7 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearSession, getSession, type AuthSession } from "@/lib/auth/session";
-import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
+import { IDriveCDOLogo } from "@/components/brand/idrive-cdo-logo";
 import { CtaButton } from "@/components/customer/cta-button";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ export function CustomerNavbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0">
-          <BrilliantGemLogo size="sm" variant="dark" />
+          <IDriveCDOLogo size="sm" variant="dark" />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

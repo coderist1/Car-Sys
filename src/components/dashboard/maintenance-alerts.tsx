@@ -2,7 +2,7 @@ import { AlertTriangle, Wrench } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { VehicleMaintenance } from "@/lib/db/types";
-import { vehicles } from "@/lib/db/mock-data";
+import { getVehicles } from "@/lib/db/data-store";
 import { formatDateOnly } from "@/lib/format-date";
 import { formatNumber } from "@/lib/format-number";
 
@@ -30,7 +30,7 @@ export function MaintenanceAlertsWidget({
           <p className="text-sm text-muted-foreground py-4 text-center">All vehicles serviced</p>
         ) : (
           alerts.map((alert) => {
-            const vehicle = vehicles.find((v) => v.vehicle_id === alert.vehicle_id);
+            const vehicle = getVehicles().find((v) => v.vehicle_id === alert.vehicle_id);
             return (
               <div
                 key={alert.maintenance_id}

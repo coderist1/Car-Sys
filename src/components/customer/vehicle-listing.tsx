@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
+import { getCustomerVehicles, type CustomerVehicle } from "@/lib/customer-vehicles";
 import { SlidersHorizontal } from "lucide-react";
 import { VehicleCard } from "@/components/customer/vehicle-card";
 import { Button } from "@/components/ui/button";
@@ -14,9 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import type { CustomerVehicle } from "@/lib/customer-vehicles";
-
-export function VehicleListing({ vehicles }: { vehicles: CustomerVehicle[] }) {
+export function VehicleListing() {
+  const storeVersion = useDataStoreVersion();
+  const vehicles = useMemo(() => getCustomerVehicles(), [storeVersion]);
   const [type, setType] = useState("all");
   const [transmission, setTransmission] = useState("all");
   const [fuel, setFuel] = useState("all");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,20 +12,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { useBookingSnapshot } from "@/hooks/use-booking-conflicts";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
 import { updateBookingStatus } from "@/lib/booking/booking-registry";
-import { getAllFuelRecords, type getAllBookings } from "@/lib/db/queries";
+import { enrichBooking, getAllFuelRecords } from "@/lib/db/queries";
 import { formatDateOnly } from "@/lib/format-date";
 
 type FuelRecordRow = ReturnType<typeof getAllFuelRecords>[number];
 
 export function TripStatusPageClient({
-  bookings,
   fuelRecords,
 }: {
-  bookings: ReturnType<typeof getAllBookings>;
   fuelRecords: FuelRecordRow[];
 }) {
   const [message, setMessage] = useState<string | null>(null);
+  const registryBookings = useBookingSnapshot();
+  const storeVersion = useDataStoreVersion();
+
+  const bookings = useMemo(
+    () => registryBookings.map(enrichBooking),
+    [registryBookings, storeVersion]
+  );
+
   const activeTrips = bookings.filter((b) =>
     ["active", "confirmed", "pending"].includes(b.status)
   );
@@ -84,6 +92,9 @@ export function TripStatusPageClient({
               </Select>
             </div>
           ))}
+          {activeTrips.length === 0 && (
+            <p className="text-sm text-muted-foreground">No active trips.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -92,22 +103,28 @@ export function TripStatusPageClient({
           <CardTitle className="text-base">Recent fuel records</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {fuelRecords.slice(0, 5).map((f) => (
-            <div key={f.fuel_id} className="text-sm border-b pb-2 last:border-0">
-              <p className="font-medium">
-                #{f.fuel_id} · {f.vehicle?.plateNumber}
-                {f.booking_id ? ` · Booking #${f.booking_id}` : ""}
-              </p>
-              <p className="text-muted-foreground">
-                {f.fuel_date} · {f.liters}L · ${f.cost}
-              </p>
+          {fuelRecords.slice(0, 8).map((f) => (
+            <div
+              key={f.fuel_id}
+              className="flex flex-col gap-1 border-b pb-3 last:border-0 sm:flex-row sm:justify-between"
+            >
+              <div>
+                <p className="font-medium text-sm">
+                  {f.vehicle?.brand} {f.vehicle?.model} · {f.station}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {f.fuel_date} · {f.liters}L · odometer {f.odometer}
+                </p>
+              </div>
+              <p className="font-semibold text-sm">${f.cost.toFixed(2)}</p>
             </div>
           ))}
-          <Button variant="outline" asChild>
-            <a href="/admin/records">Record Fuel (full form)</a>
-          </Button>
         </CardContent>
       </Card>
+
+      <Button variant="outline" className="rounded-lg" asChild>
+        <a href="/admin/reservations">Manage reservations</a>
+      </Button>
     </div>
   );
 }

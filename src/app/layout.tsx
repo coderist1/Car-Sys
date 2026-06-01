@@ -9,9 +9,9 @@ const fontSans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Brilliant Gem | Car Rental Management",
-  description: "Brilliant Gem enterprise car rental admin dashboard",
-  icons: { icon: "/brilliant-gem-icon.svg", apple: "/brilliant-gem-icon.svg" },
+  title: "iDriveCDO | Car Rental Management",
+  description: "iDriveCDO enterprise car rental admin dashboard",
+  icons: { icon: "/idrive-cdo-icon.svg", apple: "/idrive-cdo-icon.svg" },
 };
 
 export default function RootLayout({

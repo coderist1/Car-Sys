@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-interface BrilliantGemLogoProps {
+interface IDriveCDOLogoProps {
   size?: "sm" | "md" | "lg";
   showWordmark?: boolean;
   className?: string;
@@ -13,12 +13,12 @@ const sizes = {
   lg: { box: "h-11 w-11 text-lg", title: "text-base", sub: "text-xs" },
 };
 
-export function BrilliantGemLogo({
+export function IDriveCDOLogo({
   size = "md",
   showWordmark = true,
   className,
   variant = "dark",
-}: BrilliantGemLogoProps) {
+}: IDriveCDOLogoProps) {
   const s = sizes[size];
 
   return (
@@ -29,7 +29,7 @@ export function BrilliantGemLogo({
           s.box
         )}
       >
-        B
+        i
       </div>
       {showWordmark && (
         <div className="flex min-w-0 flex-col leading-tight">
@@ -40,7 +40,7 @@ export function BrilliantGemLogo({
               variant === "dark" ? "text-foreground" : "text-white"
             )}
           >
-            Brilliant Gem
+            iDriveCDO
           </span>
           <span
             className={cn(

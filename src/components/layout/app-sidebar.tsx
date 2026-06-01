@@ -36,7 +36,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
+import { IDriveCDOLogo } from "@/components/brand/idrive-cdo-logo";
 import { cn } from "@/lib/utils";
 import { clearSession, getSession, type AuthSession } from "@/lib/auth/session";
 import { getActor } from "@/lib/auth/permissions";
@@ -118,7 +118,7 @@ export function AppSidebar() {
           href="/admin"
           className="flex flex-col gap-0.5 group-data-[collapsible=icon]:items-center"
         >
-          <BrilliantGemLogo
+          <IDriveCDOLogo
             size="sm"
             showWordmark
             className="group-data-[collapsible=icon]:[&>div:last-child]:hidden"

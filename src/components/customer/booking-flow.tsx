@@ -7,7 +7,6 @@ import {
   Check,
   CreditCard,
   MapPin,
-  Star,
   Upload,
   Users,
 } from "lucide-react";
@@ -21,9 +20,11 @@ import { BookingConflictAlert } from "@/components/shared/booking-conflict-alert
 import { useAuth } from "@/hooks/use-auth";
 import { useBookingConflicts } from "@/hooks/use-booking-conflicts";
 import { tryCreateBooking } from "@/lib/booking/booking-registry";
+import { getConflictsBlockingStep } from "@/lib/booking/conflict-detection";
 import { cn } from "@/lib/utils";
+import { LeaseAgreement } from "@/components/customer/lease-agreement";
 import { getCustomerVehicle } from "@/lib/customer-vehicles";
-import { drivers } from "@/lib/db/mock-data";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
 import {
   calculateBookingTotal,
   getServiceConfig,
@@ -42,20 +43,25 @@ const INITIAL_FORM = {
   pickupLocation: "Miami International Airport",
   dropoffLocation: "",
   pickupDate: "2026-06-01",
-  returnDate: "2026-06-08",
+  returnDate: "2026-06-07",
   pickupTime: "10:00",
   passengers: "2",
   chauffeurTierId: "standard",
   preferredDriverId: "",
   specialRequests: "",
   selectedAddOns: [] as string[],
+  leaseAgreed: false,
 };
 
 export function BookingFlow() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const vehicleId = Number(searchParams.get("vehicle") ?? 2);
-  const vehicle = getCustomerVehicle(vehicleId);
+  const storeVersion = useDataStoreVersion();
+  const vehicle = useMemo(
+    () => getCustomerVehicle(vehicleId),
+    [vehicleId, storeVersion]
+  );
 
   const initialService = parseServiceType(searchParams.get("service"));
   const [serviceType, setServiceType] = useState<ServiceType | null>(initialService);
@@ -68,11 +74,6 @@ export function BookingFlow() {
   const config = serviceType ? getServiceConfig(serviceType) : null;
   const steps = config?.steps ?? [];
   const currentStep = steps[stepIndex];
-  const availableDrivers = useMemo(
-    () => drivers.filter((d) => d.availability === "available" && d.employment_status === "active"),
-    []
-  );
-
   const pricing = useMemo(() => {
     if (!vehicle || !config) return null;
     return calculateBookingTotal(config, vehicle.pricePerDay, {
@@ -85,7 +86,7 @@ export function BookingFlow() {
     if (!vehicle) return null;
     return {
       vehicle_id: vehicle.vehicle_id,
-      customer_user_id: session?.userId ?? 101,
+      customer_user_id: session?.userId ?? 0,
       driver_id:
         serviceType === "chauffeur" && form.preferredDriverId
           ? Number(form.preferredDriverId)
@@ -96,7 +97,13 @@ export function BookingFlow() {
     };
   }, [vehicle, session, serviceType, form.preferredDriverId, form.pickupDate, form.returnDate]);
 
-  const { conflicts: bookingConflicts, hasConflict } = useBookingConflicts(bookingDraft);
+  const { conflicts: bookingConflicts } = useBookingConflicts(bookingDraft);
+  const blockingConflicts = getConflictsBlockingStep(
+    bookingConflicts,
+    currentStep?.id ?? "vehicle"
+  );
+  const hasBlockingConflict = blockingConflicts.length > 0;
+  const mustAcceptLease = currentStep?.id === "lease" && !form.leaseAgreed;
 
   useEffect(() => {
     setConfirmError(null);
@@ -118,7 +125,7 @@ export function BookingFlow() {
   const selectService = (type: ServiceType) => {
     setServiceType(type);
     setStepIndex(0);
-    setForm(INITIAL_FORM);
+    setForm({ ...INITIAL_FORM });
   };
 
   const next = () => setStepIndex((i) => Math.min(steps.length - 1, i + 1));
@@ -127,18 +134,38 @@ export function BookingFlow() {
       setServiceType(null);
       return;
     }
-    setStepIndex((i) => Math.max(0, i - 1));
+    const prevIndex = Math.max(0, stepIndex - 1);
+    const leavingLease = steps[stepIndex]?.id === "lease";
+    setStepIndex(prevIndex);
+    if (leavingLease) {
+      setForm((f) => ({ ...f, leaseAgreed: false }));
+    }
   };
 
   const confirm = async () => {
-    if (!pricing || !serviceType || !vehicle || !bookingDraft || hasConflict) return;
+    if (
+      !pricing ||
+      !serviceType ||
+      !vehicle ||
+      !bookingDraft ||
+      getConflictsBlockingStep(bookingConflicts, "review").length > 0
+    ) {
+      return;
+    }
+
+    if (!session?.userId) {
+      setConfirmError("Please sign in to complete your booking.");
+      return;
+    }
 
     setIsConfirming(true);
     setConfirmError(null);
 
     const result = await tryCreateBooking({
       ...bookingDraft,
+      customer_user_id: session.userId,
       total_amount: pricing.total,
+      payment_method: form.payment,
     });
 
     setIsConfirming(false);
@@ -203,7 +230,7 @@ export function BookingFlow() {
 
       <Card className="rounded-2xl shadow-soft border-0 overflow-hidden">
         <div className="relative h-40 bg-[#111827] sm:h-48">
-          <Image src={vehicle.image} alt="" fill className="object-cover opacity-60" />
+          <Image src={vehicle.image} alt="" fill sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 768px) calc(100vw - 3rem), 768px" className="object-cover opacity-60" />
           <div className="absolute bottom-4 left-4 text-white">
             <p className="font-bold text-lg">
               {vehicle.brand} {vehicle.model}
@@ -221,12 +248,11 @@ export function BookingFlow() {
             form={form}
             setForm={setForm}
             toggleAddOn={toggleAddOn}
-            availableDrivers={availableDrivers}
             pricing={pricing}
           />
 
-          {(currentStep.id === "payment" || currentStep.id === "review" || currentStep.id === "trip") && (
-            <BookingConflictAlert conflicts={bookingConflicts} />
+          {blockingConflicts.length > 0 && (
+            <BookingConflictAlert conflicts={blockingConflicts} />
           )}
           {confirmError && (
             <p className="text-sm text-destructive" role="alert">
@@ -242,7 +268,7 @@ export function BookingFlow() {
               <CtaButton
                 onClick={next}
                 className="w-full sm:w-auto sm:ml-auto"
-                disabled={hasConflict && (currentStep.id === "trip" || currentStep.id === "vehicle")}
+                disabled={hasBlockingConflict || mustAcceptLease}
               >
                 Continue
               </CtaButton>
@@ -250,7 +276,10 @@ export function BookingFlow() {
               <CtaButton
                 onClick={confirm}
                 className="w-full sm:w-auto sm:ml-auto"
-                disabled={hasConflict || isConfirming}
+                disabled={
+                  getConflictsBlockingStep(bookingConflicts, "review").length > 0 ||
+                  isConfirming
+                }
               >
                 {isConfirming ? "Reserving…" : "Confirm Booking"}
               </CtaButton>
@@ -269,7 +298,6 @@ function StepContent({
   form,
   setForm,
   toggleAddOn,
-  availableDrivers,
   pricing,
 }: {
   stepId: BookingStepId;
@@ -278,7 +306,6 @@ function StepContent({
   form: typeof INITIAL_FORM;
   setForm: React.Dispatch<React.SetStateAction<typeof INITIAL_FORM>>;
   toggleAddOn: (id: string) => void;
-  availableDrivers: typeof drivers;
   pricing: ReturnType<typeof calculateBookingTotal> | null;
 }) {
   switch (stepId) {
@@ -289,9 +316,26 @@ function StepContent({
           <p className="text-sm text-muted-foreground">
             {vehicle.type} · {vehicle.transmission} · {vehicle.capacity} seats
           </p>
-          <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
-            ✓ Real-time availability confirmed
-          </div>
+          {config.type === "self-drive" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Pickup date</Label>
+                <HydrationDateInput
+                  className="h-11 rounded-xl"
+                  value={form.pickupDate}
+                  onChange={(e) => setForm({ ...form, pickupDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Return date</Label>
+                <HydrationDateInput
+                  className="h-11 rounded-xl"
+                  value={form.returnDate}
+                  onChange={(e) => setForm({ ...form, returnDate: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
           <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-2">
             <p className="text-sm font-semibold text-foreground">Included with {config.title}</p>
             <ul className="space-y-1">
@@ -483,89 +527,21 @@ function StepContent({
         </div>
       );
 
-    case "chauffeur":
+    case "lease":
       return (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-foreground">Chauffeur Options</h2>
-          <p className="text-sm text-muted-foreground">
-            Choose your chauffeur tier. A professional driver will be assigned before pickup.
-          </p>
-          {config.chauffeurTiers?.map((tier) => (
-            <button
-              key={tier.id}
-              type="button"
-              onClick={() => setForm({ ...form, chauffeurTierId: tier.id })}
-              className={cn(
-                "flex w-full flex-col rounded-2xl border-2 p-4 text-left transition cursor-pointer",
-                form.chauffeurTierId === tier.id
-                  ? "border-cta bg-cta/5"
-                  : "border-border"
-              )}
-            >
-              <div className="flex justify-between items-start gap-2">
-                <div>
-                  <p className="font-semibold text-foreground">{tier.label}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{tier.description}</p>
-                </div>
-                <span className="text-sm font-bold text-cta shrink-0">
-                  +${tier.feePerDay}/day
-                </span>
-              </div>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {tier.highlights.map((h) => (
-                  <li
-                    key={h}
-                    className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
-                  >
-                    {h}
-                  </li>
-                ))}
-              </ul>
-            </button>
-          ))}
-          {availableDrivers.length > 0 && (
-            <div className="space-y-2 pt-2">
-              <Label>Preferred chauffeur (optional)</Label>
-              <div className="space-y-2">
-                {availableDrivers.map((d) => (
-                  <button
-                    key={d.driver_id}
-                    type="button"
-                    onClick={() =>
-                      setForm({
-                        ...form,
-                        preferredDriverId: String(d.driver_id),
-                      })
-                    }
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-xl border-2 p-3 text-left transition cursor-pointer",
-                      form.preferredDriverId === String(d.driver_id)
-                        ? "border-cta bg-cta/5"
-                        : "border-border"
-                    )}
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{d.full_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {d.experience_years} yrs · ★ {d.rating}
-                      </p>
-                    </div>
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label>Special requests</Label>
-            <Input
-              className="h-11 rounded-xl"
-              placeholder="e.g. child seat, quiet ride, VIP meet & greet"
-              value={form.specialRequests}
-              onChange={(e) => setForm({ ...form, specialRequests: e.target.value })}
-            />
-          </div>
-        </div>
+        <LeaseAgreement
+          serviceType={config.type}
+          vehicle={vehicle}
+          lesseeName={form.fullName}
+          lesseeEmail={form.email}
+          licenseNumber={form.license}
+          pickupDate={form.pickupDate}
+          returnDate={form.returnDate}
+          pickupLocation={form.pickupLocation}
+          totalAmount={pricing?.total ?? 0}
+          agreed={form.leaseAgreed}
+          onAgreedChange={(leaseAgreed) => setForm({ ...form, leaseAgreed })}
+        />
       );
 
     case "payment":
@@ -632,22 +608,21 @@ function StepContent({
                 value={`${form.pickupDate} ${form.pickupTime} → ${form.returnDate}`}
               />
               <Row
-                label="Chauffeur"
-                value={
-                  config.chauffeurTiers?.find((t) => t.id === form.chauffeurTierId)?.label ??
-                  "—"
-                }
+                label="Lease agreement"
+                value={form.leaseAgreed ? "Accepted" : "Not accepted"}
               />
-              {form.preferredDriverId && (
-                <Row
-                  label="Preferred driver"
-                  value={
-                    availableDrivers.find(
-                      (d) => String(d.driver_id) === form.preferredDriverId
-                    )?.full_name ?? "—"
-                  }
-                />
-              )}
+            </>
+          )}
+          {config.type === "self-drive" && (
+            <>
+              <Row
+                label="Rental dates"
+                value={`${form.pickupDate} → ${form.returnDate}`}
+              />
+              <Row
+                label="Lease agreement"
+                value={form.leaseAgreed ? "Accepted" : "Not accepted"}
+              />
             </>
           )}
           {config.type === "self-drive" && form.selectedAddOns.length > 0 && (

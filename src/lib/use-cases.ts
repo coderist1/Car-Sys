@@ -1,5 +1,5 @@
 /**
- * Routes and permissions aligned with the Brilliant Gem UML use case diagram.
+ * Routes and permissions aligned with the iDriveCDO UML use case diagram.
  */
 
 import type { UserRole } from "@/lib/db/types";

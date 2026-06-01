@@ -1,4 +1,4 @@
-import { vehicles } from "@/lib/db/mock-data";
+import { getVehicles } from "@/lib/db/data-store";
 import type { Vehicle } from "@/lib/db/types";
 
 export type VehicleTag = "Premium" | "Popular" | "New" | "Bestseller" | "Luxury" | "Reserved";
@@ -33,7 +33,7 @@ const priceMap: Record<string, number> = {
 };
 
 export function getCustomerVehicles(): CustomerVehicle[] {
-  return vehicles
+  return getVehicles()
     .filter((v) => v.status === "available" || v.status === "reserved")
     .map((v) => {
       const transmission =

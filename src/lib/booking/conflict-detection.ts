@@ -1,4 +1,5 @@
 import { parseDateOnly } from "@/lib/format-date";
+import type { BookingStepId } from "@/lib/booking-service-config";
 import type { Booking, BookingStatus } from "@/lib/db/types";
 
 export type BookingConflictType = "vehicle" | "driver" | "customer" | "invalid_dates";
@@ -101,10 +102,13 @@ export function findBookingConflicts(
       });
     }
 
-    if (b.customer_user_id === draft.customer_user_id) {
+    if (
+      draft.customer_user_id > 0 &&
+      b.customer_user_id === draft.customer_user_id
+    ) {
       conflicts.push({
         type: "customer",
-        message: `This customer already has booking #${b.booking_id} overlapping these dates.`,
+        message: `You already have booking #${b.booking_id} for overlapping dates (${b.pickup_date} – ${b.return_date}). Adjust your rental dates or cancel the other booking.`,
         conflictingBookingId: b.booking_id,
         resourceLabel: `Customer #${draft.customer_user_id}`,
       });
@@ -112,6 +116,32 @@ export function findBookingConflicts(
   }
 
   return conflicts;
+}
+
+/** Conflicts that should disable Continue / Confirm on a given booking step. */
+export function getConflictsBlockingStep(
+  conflicts: BookingConflict[],
+  stepId: BookingStepId
+): BookingConflict[] {
+  return conflicts.filter((c) => {
+    switch (stepId) {
+      case "vehicle":
+        return c.type === "vehicle" || c.type === "invalid_dates";
+      case "trip":
+        return (
+          c.type === "vehicle" ||
+          c.type === "invalid_dates" ||
+          c.type === "customer"
+        );
+      case "lease":
+        return false;
+      case "payment":
+      case "review":
+        return true;
+      default:
+        return false;
+    }
+  });
 }
 
 export function isVehicleAvailableForRange(

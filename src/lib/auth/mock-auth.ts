@@ -1,5 +1,4 @@
-import { createCustomer, getCustomers, getUsers } from "@/lib/db/data-store";
-import { staffInfo } from "@/lib/db/mock-data";
+import { createCustomer, getCustomers, getStaffInfo, getUsers } from "@/lib/db/data-store";
 import type { AuthSession } from "@/lib/auth/session";
 import type { UserRole } from "@/lib/db/types";
 
@@ -42,7 +41,7 @@ export function authenticate(email: string, password: string): AuthResult {
   }
 
   const driverPortalEmail = "jennifer.walsh@fleetpro.io";
-  const staff = staffInfo.find((s) => s.user_id === user.user_id);
+  const staff = getStaffInfo().find((s) => s.user_id === user.user_id);
   const customer = getCustomers().find((c) => c.user_id === user.user_id);
   const displayName =
     normalized === driverPortalEmail

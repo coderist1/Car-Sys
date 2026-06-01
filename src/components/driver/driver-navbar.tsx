@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
+import { IDriveCDOLogo } from "@/components/brand/idrive-cdo-logo";
 import { Button } from "@/components/ui/button";
 import { clearSession, getSession } from "@/lib/auth/session";
 import { driverNavLinks } from "@/lib/use-cases";
@@ -16,7 +16,7 @@ export function DriverNavbar() {
     <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <Link href="/driver/trips">
-          <BrilliantGemLogo size="sm" variant="dark" />
+          <IDriveCDOLogo size="sm" variant="dark" />
         </Link>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           {driverNavLinks.map((u) => (
