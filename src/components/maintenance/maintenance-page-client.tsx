@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Calendar } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Calendar, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageActionButton } from "@/components/shared/page-action-button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -36,19 +36,37 @@ import {
 } from "@/components/ui/select";
 import type { MaintenanceStatus } from "@/lib/db/types";
 import type { Vehicle } from "@/lib/db/types";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
+import {
+  createMaintenance,
+  deleteMaintenance,
+  getMaintenanceRecords,
+  getVehicles,
+  updateMaintenance,
+} from "@/lib/db/data-store";
 
 type MaintenanceRow = ReturnType<
   typeof import("@/lib/db/queries").getAllMaintenance
 >[0];
 
 export function MaintenancePageClient({
-  initialRecords,
-  vehicles,
+  initialRecords: _initial,
+  vehicles: _vehicles,
 }: {
   initialRecords: MaintenanceRow[];
   vehicles: Vehicle[];
 }) {
-  const [records, setRecords] = useState(initialRecords);
+  const version = useDataStoreVersion();
+  const vehicles = useMemo(() => getVehicles(), [version]);
+  const records: MaintenanceRow[] = useMemo(
+    () =>
+      getMaintenanceRecords().map((m) => ({
+        ...m,
+        vehicle: vehicles.find((v) => v.vehicle_id === m.vehicle_id),
+        registration: undefined,
+      })),
+    [version, vehicles]
+  );
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     vehicle_id: "",
@@ -66,21 +84,15 @@ export function MaintenancePageClient({
     const vehicle = vehicles.find((v) => v.vehicle_id === Number(form.vehicle_id));
     if (!vehicle || !form.service_type || !form.service_date) return;
 
-    setRecords((prev) => [
-      {
-        maintenance_id: Date.now(),
-        vehicle_id: vehicle.vehicle_id,
-        service_type: form.service_type,
-        assigned_mechanic: form.assigned_mechanic || "Unassigned",
-        service_date: form.service_date,
-        cost: form.cost,
-        status: form.status,
-        notes: form.notes,
-        vehicle,
-        registration: undefined,
-      },
-      ...prev,
-    ]);
+    createMaintenance({
+      vehicle_id: vehicle.vehicle_id,
+      service_type: form.service_type,
+      assigned_mechanic: form.assigned_mechanic || "Unassigned",
+      service_date: form.service_date,
+      cost: form.cost,
+      status: form.status,
+      notes: form.notes,
+    });
     setOpen(false);
     setForm({
       vehicle_id: "",
@@ -217,6 +229,7 @@ export function MaintenancePageClient({
                   <TableHead>Cost</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,6 +251,33 @@ export function MaintenancePageClient({
                     </TableCell>
                     <TableCell className="max-w-[120px] truncate text-xs">
                       {r.notes}
+                    </TableCell>
+                    <TableCell className="text-right space-x-1">
+                      <Select
+                        value={r.status}
+                        onValueChange={(v) =>
+                          updateMaintenance(r.maintenance_id, {
+                            status: v as MaintenanceStatus,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive inline-flex"
+                        onClick={() => deleteMaintenance(r.maintenance_id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

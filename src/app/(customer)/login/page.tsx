@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { BrilliantGemLogo } from "@/components/brand/brilliant-gem-logo";
 import { LoginForm } from "@/components/customer/login-form";
 
@@ -10,7 +10,6 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <BrilliantGemLogo size="lg" />
           </div>
-          <CardTitle className="text-navy">Login / Register</CardTitle>
         </CardHeader>
         <LoginForm />
       </Card>

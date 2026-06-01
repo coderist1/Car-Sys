@@ -41,9 +41,21 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import type { VehicleWithReg, VehicleStatus } from "@/lib/db/types";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
+import {
+  createVehicle,
+  deleteVehicle,
+  getVehiclesWithReg,
+  updateVehicle,
+} from "@/lib/db/data-store";
 
-export function VehiclesPageClient({ initialVehicles }: { initialVehicles: VehicleWithReg[] }) {
-  const [vehicles, setVehicles] = useState(initialVehicles);
+export function VehiclesPageClient({
+  initialVehicles: _initial,
+}: {
+  initialVehicles: VehicleWithReg[];
+}) {
+  const version = useDataStoreVersion();
+  const vehicles = useMemo(() => getVehiclesWithReg(), [version]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -71,7 +83,10 @@ export function VehiclesPageClient({ initialVehicles }: { initialVehicles: Vehic
   }, [vehicles, search, statusFilter, typeFilter]);
 
   const handleDelete = (id: number) => {
-    setVehicles((prev) => prev.filter((v) => v.vehicle_id !== id));
+    if (!deleteVehicle(id)) {
+      window.alert("Cannot delete: vehicle has active bookings or linked records.");
+      return;
+    }
     setSelected(null);
   };
 
@@ -100,11 +115,9 @@ export function VehiclesPageClient({ initialVehicles }: { initialVehicles: Vehic
             }}
             onSave={(v) => {
               if (editing) {
-                setVehicles((prev) =>
-                  prev.map((x) => (x.vehicle_id === v.vehicle_id ? { ...x, ...v } : x))
-                );
+                updateVehicle(v.vehicle_id, v);
               } else {
-                setVehicles((prev) => [...prev, { ...v, vehicle_id: Date.now() }]);
+                createVehicle(v);
               }
               setDialogOpen(false);
             }}

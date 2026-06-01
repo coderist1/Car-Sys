@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Eye, Ban, CheckCircle, UserPlus } from "lucide-react";
+import { Search, Eye, Ban, CheckCircle, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageActionButton } from "@/components/shared/page-action-button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -41,15 +41,25 @@ import {
 } from "@/components/ui/select";
 import type { CustomerInfo } from "@/lib/db/types";
 import type { BookingWithRelations } from "@/lib/db/types";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
+import {
+  createCustomer,
+  deleteCustomer,
+  getCustomers,
+  updateCustomer,
+} from "@/lib/db/data-store";
 
 export function CustomersPageClient({
-  customers: initial,
-  rentalHistory,
+  rentalHistory: initialHistory,
 }: {
   customers: CustomerInfo[];
   rentalHistory: Record<number, BookingWithRelations[]>;
 }) {
-  const [customers, setCustomers] = useState(initial);
+  const version = useDataStoreVersion();
+  const customers = useMemo(() => getCustomers(), [version]);
+  const [rentalHistory] = useState(initialHistory);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<CustomerInfo | null>(null);
   const [search, setSearch] = useState("");
   const [verificationFilter, setVerificationFilter] = useState("all");
   const [selected, setSelected] = useState<CustomerInfo | null>(null);
@@ -78,14 +88,10 @@ export function CustomersPageClient({
   const history = selected ? (rentalHistory[selected.user_id] ?? []) : [];
 
   const toggleSuspend = (userId: number) => {
-    setCustomers((prev) =>
-      prev.map((c) =>
-        c.user_id === userId ? { ...c, is_suspended: !c.is_suspended } : c
-      )
-    );
-    if (selected?.user_id === userId) {
-      setSelected((s) => (s ? { ...s, is_suspended: !s.is_suspended } : null));
-    }
+    const c = customers.find((x) => x.user_id === userId);
+    if (!c) return;
+    const updated = updateCustomer(userId, { is_suspended: !c.is_suspended });
+    if (selected?.user_id === userId && updated) setSelected(updated);
   };
 
   return (
@@ -162,20 +168,7 @@ export function CustomersPageClient({
                 className="w-full sm:w-auto"
                 onClick={() => {
                   if (!newCustomer.customerFullName || !newCustomer.driverLicense) return;
-                  const id = Date.now();
-                  setCustomers((prev) => [
-                    ...prev,
-                    {
-                      user_id: id,
-                      customerFullName: newCustomer.customerFullName,
-                      address: newCustomer.address,
-                      driverLicense: newCustomer.driverLicense,
-                      verification_status: "pending",
-                      is_suspended: false,
-                      phone: newCustomer.phone,
-                      email: newCustomer.email,
-                    },
-                  ]);
+                  createCustomer(newCustomer);
                   setAddOpen(false);
                   setNewCustomer({
                     customerFullName: "",
@@ -246,7 +239,7 @@ export function CustomersPageClient({
                         <span className="text-xs text-emerald-600 font-medium">Active</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -254,6 +247,29 @@ export function CustomersPageClient({
                         onClick={() => setSelected(c)}
                       >
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setEditForm(c);
+                          setEditOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => {
+                          if (!deleteCustomer(c.user_id)) {
+                            window.alert("Cannot delete: customer has bookings.");
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -263,6 +279,63 @@ export function CustomersPageClient({
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          {editForm && (
+            <div className="grid gap-4 py-2">
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input
+                  value={editForm.customerFullName}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, customerFullName: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Verification</Label>
+                <Select
+                  value={editForm.verification_status}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      verification_status: v as CustomerInfo["verification_status"],
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!editForm) return;
+                const updated = updateCustomer(editForm.user_id, editForm);
+                if (updated) setSelected((s) => (s?.user_id === updated.user_id ? updated : s));
+                setEditOpen(false);
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">

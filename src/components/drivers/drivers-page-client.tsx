@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Star, Calendar, FileText, IdCard, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Star, Calendar, FileText, IdCard, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageActionButton } from "@/components/shared/page-action-button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -43,6 +43,14 @@ import type {
   EmploymentStatus,
   RenewalStatus,
 } from "@/lib/db/types";
+import { useDataStoreVersion } from "@/hooks/use-data-store";
+import { getBookingsSnapshot } from "@/lib/db/data-store";
+import {
+  createDriver,
+  deleteDriver,
+  getDrivers,
+  updateDriver,
+} from "@/lib/db/data-store";
 
 type DriverRow = DriverDetails & {
   assignedVehicle?: { plateNumber?: string };
@@ -52,12 +60,25 @@ type DriverRow = DriverDetails & {
 type RenewalTarget = { driverId: number; type: "license" | "registration" } | null;
 
 export function DriversPageClient({
-  initialDrivers,
+  initialDrivers: _initial,
 }: {
   initialDrivers: DriverRow[];
 }) {
-  const [drivers, setDrivers] = useState(initialDrivers);
+  const version = useDataStoreVersion();
+  const bookings = useMemo(() => getBookingsSnapshot(), [version]);
+  const drivers: DriverRow[] = useMemo(
+    () =>
+      getDrivers().map((d) => ({
+        ...d,
+        activeBookings: bookings.filter(
+          (b) => b.driver_id === d.driver_id && ["active", "confirmed"].includes(b.status)
+        ).length,
+      })),
+    [version, bookings]
+  );
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<DriverDetails | null>(null);
   const [renewalTarget, setRenewalTarget] = useState<RenewalTarget>(null);
   const [renewalDate, setRenewalDate] = useState("");
   const [addForm, setAddForm] = useState({
@@ -74,25 +95,19 @@ export function DriversPageClient({
 
   const handleAddDriver = () => {
     if (!addForm.full_name || !addForm.license_number) return;
-    const id = Date.now();
-    setDrivers((prev) => [
-      ...prev,
-      {
-        driver_id: id,
-        full_name: addForm.full_name,
-        license_number: addForm.license_number,
-        contact_number: addForm.contact_number,
-        availability: "available" as DriverAvailability,
-        experience_years: addForm.experience_years,
-        rating: 4.5,
-        employment_status: "active" as EmploymentStatus,
-        license_expiry: addForm.license_expiry || "2027-01-01",
-        registration_expiry: addForm.registration_expiry || "2027-01-01",
-        license_renewal_status: "valid" as RenewalStatus,
-        registration_renewal_status: "valid" as RenewalStatus,
-        activeBookings: 0,
-      },
-    ]);
+    createDriver({
+      full_name: addForm.full_name,
+      license_number: addForm.license_number,
+      contact_number: addForm.contact_number,
+      availability: "available" as DriverAvailability,
+      experience_years: addForm.experience_years,
+      rating: 4.5,
+      employment_status: "active" as EmploymentStatus,
+      license_expiry: addForm.license_expiry || "2027-01-01",
+      registration_expiry: addForm.registration_expiry || "2027-01-01",
+      license_renewal_status: "valid" as RenewalStatus,
+      registration_renewal_status: "valid" as RenewalStatus,
+    });
     setAddOpen(false);
     setAddForm({
       full_name: "",
@@ -106,23 +121,19 @@ export function DriversPageClient({
 
   const handleRenewal = () => {
     if (!renewalTarget || !renewalDate) return;
-    setDrivers((prev) =>
-      prev.map((d) => {
-        if (d.driver_id !== renewalTarget.driverId) return d;
-        if (renewalTarget.type === "license") {
-          return {
-            ...d,
-            license_expiry: renewalDate,
-            license_renewal_status: "valid" as RenewalStatus,
-          };
-        }
-        return {
-          ...d,
-          registration_expiry: renewalDate,
-          registration_renewal_status: "valid" as RenewalStatus,
-        };
-      })
-    );
+    const d = drivers.find((x) => x.driver_id === renewalTarget.driverId);
+    if (!d) return;
+    if (renewalTarget.type === "license") {
+      updateDriver(d.driver_id, {
+        license_expiry: renewalDate,
+        license_renewal_status: "valid",
+      });
+    } else {
+      updateDriver(d.driver_id, {
+        registration_expiry: renewalDate,
+        registration_renewal_status: "valid",
+      });
+    }
     setRenewalTarget(null);
     setRenewalDate("");
   };
@@ -250,6 +261,47 @@ export function DriversPageClient({
               </Button>
               <Button className="w-full sm:w-auto" onClick={handleRenewal}>
                 Confirm Renewal
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Driver</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input
+                  value={addForm.full_name}
+                  onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Contact</Label>
+                <Input
+                  value={addForm.contact_number}
+                  onChange={(e) => setAddForm({ ...addForm, contact_number: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!editing) return;
+                  updateDriver(editing.driver_id, {
+                    full_name: addForm.full_name,
+                    contact_number: addForm.contact_number,
+                  });
+                  setEditOpen(false);
+                }}
+              >
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -388,6 +440,7 @@ export function DriversPageClient({
                 <TableHead className="hidden sm:table-cell">License Exp.</TableHead>
                 <TableHead className="hidden sm:table-cell">Reg. Exp.</TableHead>
                 <TableHead className="hidden md:table-cell">Rating</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -432,6 +485,39 @@ export function DriversPageClient({
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                       {d.rating}
                     </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setEditing(d);
+                        setAddForm({
+                          full_name: d.full_name,
+                          license_number: d.license_number,
+                          contact_number: d.contact_number,
+                          experience_years: d.experience_years,
+                          license_expiry: d.license_expiry,
+                          registration_expiry: d.registration_expiry,
+                        });
+                        setEditOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => {
+                        if (!deleteDriver(d.driver_id)) {
+                          window.alert("Cannot delete: driver has active bookings.");
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

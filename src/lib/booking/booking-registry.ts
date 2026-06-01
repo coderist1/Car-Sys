@@ -1,4 +1,11 @@
-import { bookings as seedBookings } from "@/lib/db/mock-data";
+import {
+  appendBooking,
+  deleteBooking as removeBookingFromStore,
+  getBookingsSnapshot,
+  patchBooking,
+  setBookingsSnapshot,
+  subscribeDataStore,
+} from "@/lib/db/data-store";
 import type { Booking } from "@/lib/db/types";
 import {
   findBookingConflicts,
@@ -16,8 +23,13 @@ export type CreateBookingResult =
 
 type Listener = () => void;
 
-let snapshot: Booking[] = [...seedBookings];
 const listeners = new Set<Listener>();
+
+subscribeDataStore(() => emit());
+
+function getSnapshot(): Booking[] {
+  return getBookingsSnapshot();
+}
 const lockTail = new Map<string, Promise<void>>();
 
 function emit() {
@@ -25,6 +37,7 @@ function emit() {
 }
 
 function nextBookingId(): number {
+  const snapshot = getSnapshot();
   return Math.max(0, ...snapshot.map((b) => b.booking_id)) + 1;
 }
 
@@ -57,7 +70,7 @@ async function withBookingLocks<T>(
 }
 
 export function getBookingSnapshot(): Booking[] {
-  return [...snapshot];
+  return getBookingsSnapshot();
 }
 
 export function subscribeBookings(listener: Listener): () => void {
@@ -66,13 +79,13 @@ export function subscribeBookings(listener: Listener): () => void {
 }
 
 export function resetBookings(bookings: Booking[]): void {
-  snapshot = [...bookings];
+  setBookingsSnapshot(bookings);
   emit();
 }
 
 /** Live validation without mutating state. */
 export function checkBookingAvailability(draft: BookingDraft): BookingConflict[] {
-  return findBookingConflicts(snapshot, draft);
+  return findBookingConflicts(getSnapshot(), draft);
 }
 
 export async function tryCreateBooking(
@@ -85,7 +98,7 @@ export async function tryCreateBooking(
   ];
 
   return withBookingLocks(lockKeys, async () => {
-    const conflicts = findBookingConflicts(snapshot, input);
+    const conflicts = findBookingConflicts(getSnapshot(), input);
     if (conflicts.length > 0) {
       const primary = conflicts[0];
       return {
@@ -109,7 +122,7 @@ export async function tryCreateBooking(
       total_amount: input.total_amount,
     };
 
-    snapshot = [...snapshot, booking];
+    appendBooking(booking);
     emit();
 
     return { success: true, booking };
@@ -117,24 +130,33 @@ export async function tryCreateBooking(
 }
 
 export function cancelBooking(bookingId: number): boolean {
-  const booking = snapshot.find((b) => b.booking_id === bookingId);
+  const booking = getSnapshot().find((b) => b.booking_id === bookingId);
   if (!booking || booking.status === "cancelled" || booking.status === "completed") {
     return false;
   }
-  snapshot = snapshot.map((b) =>
-    b.booking_id === bookingId ? { ...b, status: "cancelled" as const } : b
-  );
-  emit();
-  return true;
+  const ok = patchBooking(bookingId, { status: "cancelled" });
+  if (ok) emit();
+  return ok;
 }
 
 export function updateBookingStatus(
   bookingId: number,
   status: Booking["status"]
 ): boolean {
-  const idx = snapshot.findIndex((b) => b.booking_id === bookingId);
-  if (idx === -1) return false;
-  snapshot = snapshot.map((b) => (b.booking_id === bookingId ? { ...b, status } : b));
-  emit();
-  return true;
+  const ok = patchBooking(bookingId, { status });
+  if (ok) emit();
+  return ok;
+}
+
+export function updateBooking(bookingId: number, patch: Partial<Booking>): boolean {
+  const ok = patchBooking(bookingId, patch);
+  if (ok) emit();
+  return ok;
+}
+
+/** Admin: remove a reservation */
+export function deleteBooking(bookingId: number): boolean {
+  const ok = removeBookingFromStore(bookingId);
+  if (ok) emit();
+  return ok;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Plus, Eye } from "lucide-react";
+import { Calendar, Plus, Eye, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageActionButton } from "@/components/shared/page-action-button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -46,8 +46,10 @@ import { formatDateOnly } from "@/lib/format-date";
 import { BookingConflictAlert } from "@/components/shared/booking-conflict-alert";
 import { useBookingConflicts, useBookingSnapshot } from "@/hooks/use-booking-conflicts";
 import {
+  deleteBooking,
   resetBookings,
   tryCreateBooking,
+  updateBooking,
 } from "@/lib/booking/booking-registry";
 import { findBookingConflicts } from "@/lib/booking/conflict-detection";
 
@@ -195,11 +197,7 @@ export function ReservationsPageClient({
       return;
     }
 
-    resetBookings(
-      registryBookings.map((b) =>
-        b.booking_id === booking.booking_id ? { ...b, driver_id: driverId } : b
-      )
-    );
+    updateBooking(booking.booking_id, { driver_id: driverId });
     setCreateError(null);
   };
 
@@ -459,7 +457,7 @@ export function ReservationsPageClient({
                             <div className="h-8 w-[140px] rounded-lg bg-muted/50" />
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -467,6 +465,16 @@ export function ReservationsPageClient({
                             onClick={() => setSelected(b)}
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => {
+                              if (deleteBooking(b.booking_id)) setSelected(null);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>

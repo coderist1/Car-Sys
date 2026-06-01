@@ -84,17 +84,9 @@ export function CustomerNavbar() {
               </button>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground"
-              >
-                Login / Register
-              </Link>
-              <CtaButton href="/login" className="!min-w-[100px] !rounded-full">
-                Login / Register
-              </CtaButton>
-            </>
+            <CtaButton href="/login" className="!min-w-[100px] !rounded-full">
+              Sign In
+            </CtaButton>
           )}
         </div>
 
@@ -140,14 +132,9 @@ export function CustomerNavbar() {
                 </button>
               </>
             ) : (
-              <>
-                <Link href="/login" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
-                  Login
-                </Link>
-                <CtaButton href="/login" className="mt-3">
-                  Sign Up
-                </CtaButton>
-              </>
+              <CtaButton href="/login" className="mt-3" onClick={() => setOpen(false)}>
+                Sign In
+              </CtaButton>
             )}
           </nav>
         </div>
